@@ -892,16 +892,19 @@ class Builder extends BaseBuilder
      *
      * @return \Illuminate\Support\LazyCollection
      */
-//    public function cursor()
-//    {
-//        return $this->getFresh([], true);
-//    }
-
     public function cursor()
     {
         return new LazyCollection(function () {
             yield from $this->getFresh([], true);
         });
+    }
+
+    /**
+     * @return array
+     */
+    public function getMongoSchema()
+    {
+        return $this->compileWheres();
     }
 
     /**

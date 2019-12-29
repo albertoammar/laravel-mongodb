@@ -415,6 +415,36 @@ class ModelTest extends TestCase
         $this->assertObjectNotHasAttribute('note2', $user2);
     }
 
+    public function testGetSchema(): void
+    {
+        $schema = User::query()
+            ->orWhere('id', 1)
+            ->orWhere(function($e) {
+                $e->where('id', '>=', 10);
+                $e->where('enabled', true);
+                $e->where('age', '<=', 50);
+            })
+            ->where('name', '%b%')
+            ->getMongoSchema();
+
+        $this->assertEquals([
+            '$or' => [
+                ['id'=>1],
+                [
+                    '$and'=>[
+                    ['id'=>['$gte'=>10]],
+                    ['enabled'=>true],
+                    ['age'=>['$lte'=>50]
+                    ]
+                ]
+                ]
+            ],
+            '$and'=>[
+                ['name'=>'%b%']
+            ]
+        ], $schema);
+    }
+
     public function testDates(): void
     {
         $birthday = new DateTime('1980/1/1');

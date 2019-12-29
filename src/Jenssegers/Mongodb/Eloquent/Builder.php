@@ -206,4 +206,12 @@ class Builder extends EloquentBuilder
     {
         return $this->query->getConnection();
     }
+
+    /**
+     * @return mixed
+     */
+    public function getMongoSchema()
+    {
+        return $this->query->getMongoSchema();
+    }
 }
