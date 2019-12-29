@@ -294,7 +294,7 @@ class Builder extends BaseBuilder
                     }
                 }
             }
-            
+
             // The _id field is mandatory when using grouping.
             if ($group && empty($group['_id'])) {
                 $group['_id'] = null;
@@ -317,7 +317,7 @@ class Builder extends BaseBuilder
 
             // Apply order and limit
             if ($this->orders) {
-                $pipeline[] = ['$sort' => $this->orders];
+                $pipeline[] = ['$sort' => $this->compileOrders()];
             }
             if ($this->offset) {
                 $pipeline[] = ['$skip' => $this->offset];
@@ -376,7 +376,7 @@ class Builder extends BaseBuilder
                 $options['maxTimeMS'] = $this->timeout;
             }
             if ($this->orders) {
-                $options['sort'] = $this->orders;
+                $options['sort'] = $this->compileOrders();
             }
             if ($this->offset) {
                 $options['skip'] = $this->offset;
@@ -491,10 +491,19 @@ class Builder extends BaseBuilder
         }
 
         if ($column == 'natural') {
-            $this->orders['$natural'] = $direction;
+            $this->orders[] = [
+                'column' => '$natural',
+                'direction' => $direction,
+            ];
         } else {
-            $this->orders[$column] = $direction;
+//            $this->orders[$column] = $direction;
+            $this->orders[] = [
+                'column' => $column,
+                'direction' => $direction,
+            ];
         }
+
+
 
         return $this;
     }
@@ -870,6 +879,20 @@ class Builder extends BaseBuilder
         }
 
         return call_user_func_array('parent::where', $params);
+    }
+
+    /**
+     * Compile the order for assoc array.
+     * @return array
+     */
+    protected function compileOrders()
+    {
+        $orders = [];
+        foreach ($this->orders as $order) {
+            $orders[$order['column']] = $order['direction'];
+        }
+
+        return $orders;
     }
 
     /**

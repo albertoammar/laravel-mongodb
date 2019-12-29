@@ -12,6 +12,8 @@ services:
         depends_on:
           - mongodb
           - mysql
+        command: php ./vendor/bin/phpunit
+
 
     mysql:
         container_name: mysql
