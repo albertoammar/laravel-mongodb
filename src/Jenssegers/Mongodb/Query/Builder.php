@@ -8,6 +8,7 @@ use Illuminate\Database\Query\Builder as BaseBuilder;
 use Illuminate\Database\Query\Expression;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
+use Illuminate\Support\LazyCollection;
 use Illuminate\Support\Str;
 use Jenssegers\Mongodb\Connection;
 use MongoCollection;
@@ -212,9 +213,10 @@ class Builder extends BaseBuilder
     /**
      * Execute the query as a fresh "select" statement.
      * @param array $columns
-     * @return array|static[]|Collection
+     * @param bool $onlyCursor
+     * @return array|false|Collection|\MongoCursor
      */
-    public function getFresh($columns = [])
+    public function getFresh($columns = [], $onlyCursor = false)
     {
         // If no columns have been specified for the select statement, we will set them
         // here to either the passed columns, or the standard default of retrieving
@@ -399,6 +401,10 @@ class Builder extends BaseBuilder
 
             // Execute query and get MongoCursor
             $cursor = $this->collection->find($wheres, $options);
+
+            if($onlyCursor) {
+                return $cursor;
+            }
 
             // Return results as an array with numeric keys
             $results = iterator_to_array($cursor, false);
@@ -879,6 +885,23 @@ class Builder extends BaseBuilder
         }
 
         return call_user_func_array('parent::where', $params);
+    }
+
+    /**
+     * Get a lazy collection for the given query.
+     *
+     * @return \Illuminate\Support\LazyCollection
+     */
+//    public function cursor()
+//    {
+//        return $this->getFresh([], true);
+//    }
+
+    public function cursor()
+    {
+        return new LazyCollection(function () {
+            yield from $this->getFresh([], true);
+        });
     }
 
     /**

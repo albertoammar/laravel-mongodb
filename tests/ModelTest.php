@@ -200,6 +200,40 @@ class ModelTest extends TestCase
         $this->assertInstanceOf(Model::class, $users[0]);
     }
 
+    public function testCursor(): void
+    {
+        foreach (range(1, 100) as $item) {
+            User::insert([['name' => 'Matt Dat']]);
+        }
+
+        $results = [];
+        foreach (User::query()->cursor() as $item) {
+            $results[] = $item->name;
+        }
+        $this->assertEquals(100, count($results));
+    }
+
+    public function testCursorWhere(): void
+    {
+        User::insert([
+            ['name' => 'John Doe'],
+            ['name' => 'Jane Doe'],
+            ['name' => 'Harry Hoe'],
+            ['name' => 'Iane Aoe'],
+        ]);
+
+        $results = [];
+        foreach (User::query()->where('name', 'like', '%Doe')->cursor() as $item) {
+            $results[] = $item;
+        }
+
+        $this->assertEquals(2, count($results));
+        $this->assertInstanceOf(Model::class, $results[0]);
+        $this->assertInstanceOf(Model::class, $results[1]);
+        $this->assertInstanceOf(User::class, $results[0]);
+        $this->assertInstanceOf(User::class, $results[1]);
+    }
+
     public function testFirst(): void
     {
         User::insert([
