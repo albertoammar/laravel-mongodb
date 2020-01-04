@@ -79,17 +79,24 @@ abstract class Model extends BaseModel
      */
     public function fromDateTime($value)
     {
-        // If the value is already a UTCDateTime instance, we don't need to parse it.
-        if ($value instanceof UTCDateTime) {
-            return $value;
-        }
+        // If value is array
+        if(is_array($value)) {
+          return array_map(function ($item) {
+              return $this->fromDateTime($item);
+          }, $value);
+        } else {
+            // If the value is already a UTCDateTime instance, we don't need to parse it.
+            if ($value instanceof UTCDateTime) {
+                return $value;
+            }
 
-        // Let Eloquent convert the value to a DateTime instance.
-        if (!$value instanceof DateTime) {
-            $value = parent::asDateTime($value);
-        }
+            // Let Eloquent convert the value to a DateTime instance.
+            if (!$value instanceof DateTime) {
+                $value = parent::asDateTime($value);
+            }
 
-        return new UTCDateTime($value->getTimestamp() * 1000);
+            return new UTCDateTime($value->getTimestamp() * 1000);
+        }
     }
 
     /**
@@ -97,6 +104,12 @@ abstract class Model extends BaseModel
      */
     protected function asDateTime($value)
     {
+        if (is_array($value)) {
+            return array_map(function ($item) {
+                return $this->asDateTime($item);
+            }, $value);
+        }
+
         // Convert UTCDateTime instances.
         if ($value instanceof UTCDateTime) {
             return Carbon::createFromTimestamp($value->toDateTime()->getTimestamp());
@@ -165,6 +178,41 @@ abstract class Model extends BaseModel
     }
 
     /**
+     * Get a plain attribute (not a relationship).
+     *
+     * @param  string  $key
+     * @return mixed
+     */
+    public function getAttributeValue($key)
+    {
+        $value = $this->getAttributeFromArray($key);
+
+        foreach ($this->getDates() as $date) {
+            if (preg_match('/^' . $date . '\..*$/', $key)) {
+                return $this->asDateTime($value);
+            }
+
+            if (is_array($value) && Arr::isAssoc($value)) {
+                $valueDot = Arr::dot([$key => $value]);
+                $newValue = [];
+                foreach ($valueDot as $key1 => $item1) {
+                    foreach ($this->getDates() as $date) {
+                        if (preg_match('/^' . str_replace('.*', '\..*', $date) . '$/', $key1)) {
+                            $item1 = $this->asDateTime($item1);
+                        }
+                    }
+
+                    Arr::set($newValue, $key1, $item1);
+                }
+
+                return Arr::get($newValue, $key);
+            }
+        }
+
+        return parent::getAttributeValue($key);
+    }
+
+    /**
      * @inheritdoc
      */
     public function setAttribute($key, $value)
@@ -183,6 +231,24 @@ abstract class Model extends BaseModel
             Arr::set($this->attributes, $key, $value);
 
             return;
+        } else {
+            if (is_array($value) && Arr::isAssoc($value)) {
+                $valueDot = Arr::dot([$key => $value]);
+                $newValue = [];
+                foreach ($valueDot as $key1 => $item1) {
+                    foreach ($this->getDates() as $date) {
+                        if (preg_match('/^' . str_replace('.*', '\..*', $date) . '$/', $key1)) {
+                            $item1 = $this->fromDateTime($item1);
+                        }
+                    }
+
+                    Arr::set($newValue, $key1, $item1);
+                }
+
+                Arr::set($this->attributes, $key, Arr::get($newValue, $key));
+
+                return;
+            }
         }
 
         return parent::setAttribute($key, $value);
@@ -212,6 +278,46 @@ abstract class Model extends BaseModel
             if (Str::contains($key, '.') && Arr::has($attributes, $key)) {
                 Arr::set($attributes, $key, (string) $this->asDateTime(Arr::get($attributes, $key)));
             }
+        }
+
+        // Convert dot dates
+        $attributesDot = Arr::dot($attributes);
+        foreach ($attributesDot as $key1 => $item1) {
+            foreach ($this->getDates() as $date) {
+                if (preg_match('/^' . str_replace('.*', '\..*', $date) . '$/', $key1)) {
+                    if (!is_string($item1)) {
+                        Arr::set($attributes, $key1, (string) $this->asDateTime($item1));
+                    }
+                }
+            }
+        }
+
+        return $attributes;
+    }
+
+    /**
+     * Add the date attributes to the attributes array.
+     *
+     * @param  array  $attributes
+     * @return array
+     */
+    protected function addDateAttributesToArray(array $attributes)
+    {
+        foreach ($this->getDates() as $key) {
+            if (! isset($attributes[$key])) {
+                continue;
+            }
+
+            if(is_array($attributes[$key])) {
+                $attributes[$key] = array_map(function ($item) {
+                    return $this->asDateTime($item);
+                }, $attributes[$key]);
+            } else {
+                $attributes[$key] = $this->serializeDate(
+                    $this->asDateTime($attributes[$key])
+                );
+            }
+
         }
 
         return $attributes;

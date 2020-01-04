@@ -496,6 +496,32 @@ class ModelTest extends TestCase
         $data = $user->toArray();
         $this->assertNotInstanceOf(UTCDateTime::class, $data['entry']['date']);
         $this->assertEquals((string) $user->getAttribute('entry.date')->format('Y-m-d H:i:s'), $data['entry']['date']);
+
+        // Array
+        $user = User::create(['name' => 'Jane Doe', 'array' => ['2005-08-08']]);
+        $this->assertInstanceOf(Carbon::class, $user->getAttribute('array.0'));
+        $this->assertInstanceOf(Carbon::class, $user->getAttribute('array')[0]);
+
+        $user->setAttribute('array.0', new DateTime);
+        $this->assertInstanceOf(Carbon::class, $user->getAttribute('array.0'));
+        $this->assertInstanceOf(Carbon::class, $user->getAttribute('array')[0]);
+
+        $data = $user->toArray();
+        $this->assertNotInstanceOf(UTCDateTime::class, $data['array'][0]);
+        $this->assertEquals((string) $user->getAttribute('array.0')->format('Y-m-d H:i:s'), $data['array'][0]);
+
+        // Array Assoc
+        $user = User::create(['name' => 'Jane Doe', 'array_assoc' => ['b' => '2005-08-08']]);
+        $this->assertInstanceOf(Carbon::class, $user->getAttribute('array_assoc.b'));
+        $this->assertInstanceOf(Carbon::class, $user->getAttribute('array_assoc')['b']);
+
+        $user->setAttribute('array_assoc.b', new DateTime);
+        $this->assertInstanceOf(Carbon::class, $user->getAttribute('array_assoc.b'));
+        $this->assertInstanceOf(Carbon::class, $user->getAttribute('array_assoc')['b']);
+
+        $data = $user->toArray();
+        $this->assertNotInstanceOf(UTCDateTime::class, $data['array_assoc']['b']);
+        $this->assertEquals((string) $user->getAttribute('array_assoc.b')->format('Y-m-d H:i:s'), $data['array_assoc']['b']);
     }
 
     public function testIdAttribute(): void
